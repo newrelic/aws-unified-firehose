@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  LogGroupConfig:
+    Description:  "String representation of JSON array of objects of your CloudWatch Loggroup(s) and respective filter (if applicable)"
+    Type: String
+  LogGroupArns:
+    Description: "Comma-separated list of CloudWatch Log Group ARNs to create subscription to Data Firehose"
+    Type: CommaDelimitedList
+  InvalidLogGroups:
+    Description: "Comma-separated list of CloudWatch Log Groups provided in use input which are invalid and should be skipped."
+    Type: CommaDelimitedList
+  LoggingFirehoseStreamArn:
+    Type: String
+    Description: "Data Firehose arn to create cloudwatch log group subscription"
+
+Conditions:
+  HasValidLogGroups: !Not [!Equals [!Select [0, !Ref LogGroupArns], ""]]
+
+Resources:
+  CloudWatchLogGroupTriggers:
+    Type: 'Custom::CloudWatchNotifications'
+    Condition: HasValidLogGroups
+    Properties:
+      ServiceToken: !GetAtt CloudWatchEventCustomResourceLambda.Arn
+      LoggingFirehoseStreamArn: !Ref LoggingFirehoseStreamArn
+      LogGroupConfig: !Ref LogGroupConfig
+      InvalidLogGroups: !Ref InvalidLogGroups
+
+  CustomCloudWatchLambdaExecutionRole:
+    Type: "AWS::IAM::Role"
+    Condition: HasValidLogGroups
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: "LambdaExecutionPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:PutSubscriptionFilter
+                Resource: !Ref LogGroupArns
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+              - Effect: Allow
+                Action:
+                  - 'iam:PassRole'
+                Resource: !GetAtt CloudWatchFirehoseRole.Arn
+
+  CloudWatchFirehoseRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - logs.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: "FirehoseWritePolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - firehose:PutRecord
+                  - firehose:PutRecordBatch
+                Resource: !Ref LoggingFirehoseStreamArn
+             
+  CloudWatchEventCustomResourceLambda:
+    Type: 'AWS::Lambda::Function'
+    Condition: HasValidLogGroups
+    Properties:
+      Environment:
+        Variables:
+          CloudWatchFirehoseRoleArn: !GetAtt CloudWatchFirehoseRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import cfnresponse
+          import logging
+          import os
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          log_client = boto3.client('logs')
+          
+          def lambda_handler(event, context):
+              response = {}
+              try:
+                  if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
+                      event_data = event['ResourceProperties']
+                      firehose_arn = event_data.get('LoggingFirehoseStreamArn', '')
+                      
+                      log_group_config_str = event_data.get('LogGroupConfig', [])
+                      invalid_log_groups = set(event_data.get('InvalidLogGroups', []))
+                      logger.info(f'Invalid Log Groups: {invalid_log_groups}')
+    
+                      # Parsing LogGroupConfig JSON array
+                      log_group_config = json.loads(log_group_config_str)
+                      for log_group in log_group_config:                      
+                          log_group_name = log_group['LogGroupName']
+                          if log_group_name in invalid_log_groups:
+                              logger.info(f'Log group {log_group_name} is invalid. Skipping...')
+                              continue
+                          filter_pattern = log_group['FilterPattern'] if 'FilterPattern' in log_group else ''
+
+                          cloudwatch_firehose_role_arn = os.environ['CloudWatchFirehoseRoleArn']
+
+                          response = log_client.put_subscription_filter(
+                            logGroupName=log_group_name,
+                            roleArn=cloudwatch_firehose_role_arn,
+                            filterName='LoggingFirehoseSubscription',
+                            filterPattern=filter_pattern,
+                            destinationArn=firehose_arn
+                          )
+          
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, response)
+              except Exception as e:
+                  logger.error(f'Error: {str(e)}')
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, reason=f'{str(e)}')
+      Handler: index.lambda_handler
+      Role: !GetAtt CustomCloudWatchLambdaExecutionRole.Arn
+      Runtime: python3.12
+      Timeout: 120

@@ -8,17 +8,19 @@ on:
 jobs:
   validate-template-code:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install AWS SAM CLI
         run: |
-          pip install aws-sam-cli
+          pip install --user aws-sam-cli
 
       - name: Validate SAM Templates
         run: |
-          for template in $(find . -name ".yaml" -o -name ".yml"); do
-          echo "Validating template: $template"
-          sam validate --template-file "$template" --region us-east-2 --lint
+          for template in $(find . -name "*.yaml" -o -name "*.yml"); do
+            echo "Validating template: $template"
+            sam validate --template-file "$template" --region us-east-2 --lint
           done
+        shell: bash

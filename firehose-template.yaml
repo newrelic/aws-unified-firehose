@@ -203,7 +203,7 @@ Resources:
                       # these parameter are needed for entity synthesis
                       additional_attributes = [
                          {"AttributeName": "aws.accountId", "AttributeValue": account_id},
-                         {"AttributeName": "aws.region", "AttributeValue": region },
+                         {"AttributeName": "aws.region", "AttributeValue": region},
                          {"AttributeName": "instrumentation.provider", "AttributeValue": "aws"},
                          {"AttributeName": "instrumentation.name", "AttributeValue": "firehose"},
                          {"AttributeName": "instrumentation.version", "AttributeValue": "1.0.0"},

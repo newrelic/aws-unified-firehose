@@ -204,7 +204,7 @@ Resources:
                       additional_attributes = [
                          {"AttributeName": "aws.accountId", "AttributeValue": account_id},
                          {"AttributeName": "aws.region", "AttributeValue": region },
-                         {"AttributeName": "instrumentation.provider", "AttributeValue": "nr-aws"},
+                         {"AttributeName": "instrumentation.provider", "AttributeValue": "aws"},
                          {"AttributeName": "instrumentation.name", "AttributeValue": "firehose"},
                          {"AttributeName": "instrumentation.version", "AttributeValue": "1.0.0"},
                          {"AttributeName": "aws.realm", "AttributeValue": awsRealm}

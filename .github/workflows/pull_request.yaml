@@ -19,7 +19,7 @@ jobs:
 
       - name: Validate SAM Templates
         run: |
-          for template in $(find . -name "*.yaml" -o -name "*.yml" -not -path "./.github/*"); do
+          for template in $(find . -name "*.yaml" -o -name "*.yml" -not -path ".github/*"); do
             echo "Validating template: $template"
             sam validate --template-file "$template" --region us-east-2 --lint
           done

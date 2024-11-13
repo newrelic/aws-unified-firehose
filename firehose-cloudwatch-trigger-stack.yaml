@@ -18,16 +18,16 @@ Conditions:
   HasValidLogGroups: !Not [!Equals [!Select [0, !Ref LogGroupArns], ""]]
 
 Resources:
-  CloudWatchLogGroupTriggers:
+  NewRelicLogsCloudWatchFirehoseLogGroupTriggers:
     Type: 'Custom::CloudWatchNotifications'
     Condition: HasValidLogGroups
     Properties:
-      ServiceToken: !GetAtt CloudWatchEventCustomResourceLambda.Arn
+      ServiceToken: !GetAtt NewRelicLogsCloudWatchFirehoseEventLambda.Arn
       LoggingFirehoseStreamArn: !Ref LoggingFirehoseStreamArn
       LogGroupConfig: !Ref LogGroupConfig
       InvalidLogGroups: !Ref InvalidLogGroups
 
-  CustomCloudWatchLambdaExecutionRole:
+  NewRelicLogsCloudWatchFirehoseLambdaIAMRole:
     Type: "AWS::IAM::Role"
     Condition: HasValidLogGroups
     Properties:
@@ -58,9 +58,9 @@ Resources:
               - Effect: Allow
                 Action:
                   - 'iam:PassRole'
-                Resource: !GetAtt CloudWatchFirehoseRole.Arn
+                Resource: !GetAtt NewRelicLogsCloudWatchFirehoseIAMRole.Arn
 
-  CloudWatchFirehoseRole:
+  NewRelicLogsCloudWatchFirehoseIAMRole:
     Type: "AWS::IAM::Role"
     Properties:
       AssumeRolePolicyDocument:
@@ -83,13 +83,13 @@ Resources:
                   - firehose:PutRecordBatch
                 Resource: !Ref LoggingFirehoseStreamArn
              
-  CloudWatchEventCustomResourceLambda:
+  NewRelicLogsCloudWatchFirehoseEventLambda:
     Type: 'AWS::Lambda::Function'
     Condition: HasValidLogGroups
     Properties:
       Environment:
         Variables:
-          CloudWatchFirehoseRoleArn: !GetAtt CloudWatchFirehoseRole.Arn
+          CloudWatchFirehoseRoleArn: !GetAtt NewRelicLogsCloudWatchFirehoseIAMRole.Arn
       Code:
         ZipFile: |
           import json
@@ -138,6 +138,6 @@ Resources:
                   logger.error(f'Error: {str(e)}')
                   cfnresponse.send(event, context, cfnresponse.FAILED, {}, reason=f'{str(e)}')
       Handler: index.lambda_handler
-      Role: !GetAtt CustomCloudWatchLambdaExecutionRole.Arn
+      Role: !GetAtt NewRelicLogsCloudWatchFirehoseLambdaIAMRole.Arn
       Runtime: python3.12
       Timeout: 120

@@ -91,7 +91,8 @@ Conditions:
   ShouldEnableCloudWatchLogging: !Equals [!Ref EnableCloudWatchLoggingForFirehose, "true"]
 # TODO : Add secret manager condition and support if needed.
 Resources:
-  LoggingS3FirehoseEventsBucket:
+
+  NewRelicLogsS3FirehoseEventsBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Join ['-', [!Ref LoggingS3BackupBucketName, !Select [0, !Split ['-', !Select [2, !Split ['/', !Ref 'AWS::StackId' ]]]]]]
@@ -100,7 +101,8 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
-  LoggingFirehoseRole:
+
+  NewRelicLogsFirehoseRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -127,8 +129,8 @@ Resources:
                   - 's3:ListBucketMultipartUploads'
                   - 's3:PutObject'
                 Resource:
-                  - !GetAtt LoggingS3FirehoseEventsBucket.Arn
-                  - !Join ['', [!GetAtt LoggingS3FirehoseEventsBucket.Arn, '/*']]
+                  - !GetAtt NewRelicLogsS3FirehoseEventsBucket.Arn
+                  - !Join ['', [!GetAtt NewRelicLogsS3FirehoseEventsBucket.Arn, '/*']]
         - PolicyName: Firehose-CloudWatchAccess
           PolicyDocument:
             Version: 2012-10-17
@@ -138,21 +140,23 @@ Resources:
                   - logs:PutLogEvents
                 Resource: 'arn:aws:logs:*:*:*'
       Description: Role to allow firehose stream to access resources including putting events into S3 backup bucket
-      RoleName: !Join ['-', ['LoggingFirehoseRole', !Select [0, !Split ['-', !Select [2, !Split ['/', !Ref 'AWS::StackId' ]]]]]]
-  FirehoseErrorLogGroup:
+      RoleName: !Join ['-', ['NewRelicLogsFirehoseRole', !Select [0, !Split ['-', !Select [2, !Split ['/', !Ref 'AWS::StackId' ]]]]]]
+  
+  NewRelicLogsFirehoseErrorLogGroup:
     Type: AWS::Logs::LogGroup
     Condition: ShouldEnableCloudWatchLogging
     Properties:
       LogGroupName: !Join ['/', ['/aws/datafirehose-newrelic/', !Ref 'AWS::StackName', 'FirehoseError']]
-  FirehoseLogStream:
+  
+  NewRelicLogsFirehoseLogStream:
     Type: AWS::Logs::LogStream
     Condition: ShouldEnableCloudWatchLogging
     Properties:
-      LogGroupName: !Ref FirehoseErrorLogGroup
+      LogGroupName: !Ref NewRelicLogsFirehoseErrorLogGroup
       LogStreamName: "FirehoseErrorLogStream"
   
   
-  UserInputParserLambdaExecutionRole:
+  NewRelicLogsUserInputParserLambdaIAMRole:
     Type: "AWS::IAM::Role"
     Properties:
       AssumeRolePolicyDocument:
@@ -176,7 +180,8 @@ Resources:
                   - 'logs:CreateLogStream'
                   - 'logs:PutLogEvents'
                 Resource: 'arn:aws:logs:*:*:*'
-  UserInputParserLambda:
+
+  NewRelicLogsUserInputParserLambda:
     Type: 'AWS::Serverless::Function'
     Properties: 
       InlineCode: |
@@ -217,11 +222,9 @@ Resources:
                       else:
                           common_attributes = []
 
-
                       common_attributes.extend(additional_attributes)
 
-                      log_group_config = event_data['LogGroupConfig']
-                      log_group_config_json = json.loads(log_group_config)
+                      log_group_config_json = json.loads(event_data.get('LogGroupConfig', '[]').strip() or '[]')
 
                       # Create the log group arns from the log group json if given log group exists
                       log_group_arns = []
@@ -259,21 +262,21 @@ Resources:
                   cfnresponse.send(event, context, cfnresponse.FAILED, {}, reason=f'{str(e)}')
       Handler: index.handler
       Runtime: python3.12
-      Role: !GetAtt UserInputParserLambdaExecutionRole.Arn
+      Role: !GetAtt NewRelicLogsUserInputParserLambdaIAMRole.Arn
       Timeout: 120
       MemorySize: 128
 
-  CustomResourceForUserInputParser:
+  NewRelicLogsResourceForUserInputParsing:
     Type: AWS::CloudFormation::CustomResource
     Properties:
-      ServiceToken: !GetAtt UserInputParserLambda.Arn
+      ServiceToken: !GetAtt NewRelicLogsUserInputParserLambda.Arn
       LogGroupConfig: !Ref LogGroupConfig
       CommonAttributes: !Ref CommonAttributes
       AWS_ACCOUNT_ID: !Ref AWS::AccountId
       AWS_REGION: !Ref AWS::Region
       AWS_REALM: !Ref AWS::Partition
 
-  LoggingFirehoseStreamToNewRelic:
+  NewRelicLogsFirehoseStreamToNewRelic:
     Type: AWS::KinesisFirehose::DeliveryStream
     Properties:
       DeliveryStreamName: !Join ['-', [!Ref LoggingFirehoseStreamName, !Select [0, !Split ['-', !Select [2, !Split ['/', !Ref 'AWS::StackId' ]]]]]]
@@ -282,7 +285,7 @@ Resources:
         RequestConfiguration:
           ContentEncoding: GZIP
           # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-kinesisfirehose-deliverystream-httpendpointrequestconfiguration.html
-          CommonAttributes: !GetAtt CustomResourceForUserInputParser.CommonAttributes
+          CommonAttributes: !GetAtt NewRelicLogsResourceForUserInputParsing.CommonAttributes
         EndpointConfiguration:
           Name: New Relic
           Url: !FindInMap [NewRelicDatacenterMap, Datacenter, !Ref NewRelicRegion]
@@ -294,33 +297,34 @@ Resources:
           DurationInSeconds: 60
         S3Configuration:
           CompressionFormat: GZIP
-          BucketARN: !GetAtt LoggingS3FirehoseEventsBucket.Arn
-          RoleARN: !GetAtt LoggingFirehoseRole.Arn
+          BucketARN: !GetAtt NewRelicLogsS3FirehoseEventsBucket.Arn
+          RoleARN: !GetAtt NewRelicLogsFirehoseRole.Arn
         CloudWatchLoggingOptions: 
           !If 
             - ShouldEnableCloudWatchLogging
             - 
               Enabled: true
-              LogGroupName: !Ref FirehoseErrorLogGroup
-              LogStreamName: !Ref FirehoseLogStream
+              LogGroupName: !Ref NewRelicLogsFirehoseErrorLogGroup
+              LogStreamName: !Ref NewRelicLogsFirehoseLogStream
             - 
               Ref: "AWS::NoValue"
-        RoleARN: !GetAtt LoggingFirehoseRole.Arn
-  CloudWatchFirehoseTriggerStack:
+        RoleARN: !GetAtt NewRelicLogsFirehoseRole.Arn
+  
+  NewRelicLogsCloudWatchFirehoseTrigger:
     Type: 'AWS::CloudFormation::Stack'
     Condition: AddCloudwatchTrigger
     Properties:
       TemplateURL: firehose-cloudwatch-trigger-stack.yaml
       Parameters:
         LogGroupConfig: !Ref LogGroupConfig
-        LogGroupArns: !GetAtt CustomResourceForUserInputParser.LogGroupArns
-        InvalidLogGroups: !GetAtt CustomResourceForUserInputParser.InvalidLogGroups
-        LoggingFirehoseStreamArn: !GetAtt LoggingFirehoseStreamToNewRelic.Arn
+        LogGroupArns: !GetAtt NewRelicLogsResourceForUserInputParsing.LogGroupArns
+        InvalidLogGroups: !GetAtt NewRelicLogsResourceForUserInputParsing.InvalidLogGroups
+        LoggingFirehoseStreamArn: !GetAtt NewRelicLogsFirehoseStreamToNewRelic.Arn
 
 Outputs:
-  LoggingFirehoseStreamArn:
+  NewRelicLogsLoggingFirehoseStreamArn:
     Description: The ARN of the Logging DataFirehose Stream.
-    Value: !GetAtt LoggingFirehoseStreamToNewRelic.Arn
-  ErrorUserInput:
+    Value: !GetAtt NewRelicLogsFirehoseStreamToNewRelic.Arn
+  NewRelicLogsUserInputErrors:
     Description: Contains Details about Errors in User Input.
-    Value: !GetAtt CustomResourceForUserInputParser.ErrorMessages
+    Value: !GetAtt NewRelicLogsResourceForUserInputParsing.ErrorMessages

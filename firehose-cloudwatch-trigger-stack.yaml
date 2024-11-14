@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 
 Parameters:
   LogGroupConfig:
-    Description:  "String representation of JSON array of objects of your CloudWatch Loggroup(s) and respective filter (if applicable)"
+    Description: "JSON array of objects representing your LogGroup and Filters (if applicable). For example: [{\"LogGroupName\":\"logGroup1\",\"FilterPattern\":\"filter1\"}]"
     Type: String
   LogGroupArns:
     Description: "Comma-separated list of CloudWatch Log Group ARNs to create subscription to Data Firehose"

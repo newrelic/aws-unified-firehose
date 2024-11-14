@@ -34,6 +34,8 @@ Metadata:
         default: 'Enables CloudWatch logging for Logging Firehose stream'
       CommonAttributes:
         default: 'Common Attributes to be added to the log events'
+      StoreNRLicenseKeyInSecretManager:
+        default: 'Store New Relic License Key in AWS Secrets Manager'
 
 Parameters:
   LicenseKey:
@@ -84,13 +86,29 @@ Parameters:
     Type: String
     Description: "String representation of JSON array of objects of custom attributes to organize your logs and make it easier for you to search, filter, analyze, and parse your logs"
     Default: ""
+  StoreNRLicenseKeyInSecretManager:
+    Type: String
+    Description: Should we store the New Relic license key in AWS Secrets Manager. Defaults to true.
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false" 
 
 
 Conditions:
   AddCloudwatchTrigger: !Not [ !Equals [!Ref LogGroupConfig , ""]]
   ShouldEnableCloudWatchLogging: !Equals [!Ref EnableCloudWatchLoggingForFirehose, "true"]
-# TODO : Add secret manager condition and support if needed.
+  ShouldCreateSecret: !Equals [ !Ref StoreNRLicenseKeyInSecretManager, "true" ]
+
 Resources:
+
+  NewRelicLogsLicenseKeySecret:
+    Type: 'AWS::SecretsManager::Secret'
+    Condition: ShouldCreateSecret
+    Properties:
+      Description: The New Relic license key, for sending telemetry
+      Name : !Join ['-', ['nr-license-key', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
+      SecretString: !Sub '{ "LicenseKey": "${LicenseKey}"}'
 
   NewRelicLogsS3FirehoseEventsBucket:
     Type: AWS::S3::Bucket
@@ -290,7 +308,10 @@ Resources:
         EndpointConfiguration:
           Name: New Relic
           Url: !FindInMap [NewRelicDatacenterMap, Datacenter, !Ref NewRelicRegion]
-          AccessKey: !Ref LicenseKey
+          AccessKey: !If 
+            - ShouldCreateSecret
+            - !Sub '{{resolve:secretsmanager:${NewRelicLogsLicenseKeySecret}:SecretString:LicenseKey}}'
+            - !Ref LicenseKey
         BufferingHints:
           IntervalInSeconds: 60
           SizeInMBs: 1

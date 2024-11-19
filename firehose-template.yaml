@@ -108,7 +108,7 @@ Resources:
     Properties:
       Description: The New Relic license key, for sending telemetry
       Name : !Join ['-', ['nr-license-key', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
-      SecretString: !Sub '{ "LicenseKey": "${LicenseKey}"}'
+      SecretString: !Sub '{ "api_key": "${LicenseKey}"}'
 
   NewRelicLogsS3FirehoseEventsBucket:
     Type: AWS::S3::Bucket
@@ -241,6 +241,12 @@ Resources:
                       else:
                           common_attributes = []
 
+                      # Filter out AttributeNames that are needed for entity synthesis from common_attributes
+                      existing_attribute_names = {attr['AttributeName'] for attr in additional_attributes}
+                      common_attributes = [
+                          attr for attr in common_attributes if attr['AttributeName'] not in existing_attribute_names
+                      ]
+                      
                       common_attributes.extend(additional_attributes)
 
                       log_group_config_json = json.loads(event_data.get('LogGroupConfig', '[]').strip() or '[]')
@@ -308,10 +314,10 @@ Resources:
         EndpointConfiguration:
           Name: New Relic
           Url: !FindInMap [NewRelicDatacenterMap, Datacenter, !Ref NewRelicRegion]
-          AccessKey: !If 
-            - ShouldCreateSecret
-            - !Sub '{{resolve:secretsmanager:${NewRelicLogsLicenseKeySecret}:SecretString:LicenseKey}}'
-            - !Ref LicenseKey
+          AccessKey: !If [ShouldCreateSecret, !Ref "AWS::NoValue",!Ref LicenseKey]
+        SecretsManagerConfiguration:
+          Enabled: !If [ShouldCreateSecret, true, false] 
+          SecretARN: !If [ShouldCreateSecret, !Ref NewRelicLogsLicenseKeySecret, !Ref "AWS::NoValue"]
         BufferingHints:
           IntervalInSeconds: 60
           SizeInMBs: 1

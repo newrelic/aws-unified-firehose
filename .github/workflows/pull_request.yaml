@@ -29,7 +29,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: stelligent/cfn_nag@master
+      - name: Run CFN Nag Security Checks
+        uses: stelligent/cfn_nag@master
         with:
           input_path: .
+          output_path: cfn_nag.sarif
+      - name: Upload CFN Nag SARIF
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: cfn_nag.sarif    
     

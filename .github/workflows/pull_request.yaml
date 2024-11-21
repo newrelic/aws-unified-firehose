@@ -33,6 +33,7 @@ jobs:
         uses: stelligent/cfn_nag@master
         with:
           input_path: .
+          extra_args: -o sarif
           output_path: cfn_nag.sarif
       - name: Upload CFN Nag SARIF
         uses: github/codeql-action/upload-sarif@v2

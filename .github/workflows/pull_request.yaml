@@ -29,20 +29,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up Ruby
-        uses: actions/setup-ruby@v1
+      - uses: stelligent/cfn_nag@master
         with:
-          ruby-version: '2.7'  # Specify the Ruby version you need
-
-      - name: Install cfn_nag locally
-        run: gem install --user-install cfn-nag
-
-      - name: Add gem binary to PATH
-        run: echo "::add-path::$(ruby -r rubygems -e 'puts Gem.user_dir')/bin"
-
-      - name: Run security scan on CloudFormation templates
-        run: cfn_nag_scan --input-path .
-      
+          input_path: .
+    

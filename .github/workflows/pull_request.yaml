@@ -35,7 +35,7 @@ jobs:
           input_path: .
           output_path: cfn_nag.sarif
       - name: Upload CFN Nag SARIF
-        uses: github/codeql-action/upload-sarif@v1
+        uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: cfn_nag.sarif    
     

@@ -24,3 +24,17 @@ jobs:
            sam validate --template-file "$template" --region us-east-2 --lint
           done        
         shell: bash
+
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install cfn_nag
+        run: gem install cfn-nag
+
+      - name: Run security scan on CloudFormation templates
+        run: cfn_nag_scan --input-path .
+      

@@ -157,14 +157,17 @@ Resources:
                 Action:
                   - logs:PutLogEvents
                 Resource: 'arn:aws:logs:*:*:*'
-        - PolicyName: Firehose-SecretsManagerAccess
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - 'secretsmanager:GetSecretValue'
-                Resource: !If [ShouldCreateSecret, !Ref NewRelicLogsLicenseKeySecret, ['*'] ]
+        - !If
+          - ShouldCreateSecret
+          - PolicyName: Firehose-SecretsManagerAccess
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - 'secretsmanager:GetSecretValue'
+                  Resource: !Ref NewRelicLogsLicenseKeySecret
+          - !Ref "AWS::NoValue"
       Description: Role to allow firehose stream to access resources including putting events into S3 backup bucket
       RoleName: !Join ['-', ['NewRelicLogsFirehoseRole', !Select [0, !Split ['-', !Select [2, !Split ['/', !Ref 'AWS::StackId' ]]]]]]
   

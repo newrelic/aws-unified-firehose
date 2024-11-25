@@ -157,6 +157,17 @@ Resources:
                 Action:
                   - logs:PutLogEvents
                 Resource: 'arn:aws:logs:*:*:*'
+        - !If
+          - ShouldCreateSecret
+          - PolicyName: Firehose-SecretsManagerAccess
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - 'secretsmanager:GetSecretValue'
+                  Resource: !Ref NewRelicLogsLicenseKeySecret
+          - !Ref "AWS::NoValue"
       Description: Role to allow firehose stream to access resources including putting events into S3 backup bucket
       RoleName: !Join ['-', ['NewRelicLogsFirehoseRole', !Select [0, !Split ['-', !Select [2, !Split ['/', !Ref 'AWS::StackId' ]]]]]]
   
@@ -227,16 +238,17 @@ Resources:
                       isLogGroupValid = True
 
                       try:
-                          attributes = json.loads(common_attributes_str)
-                          if not isinstance(attributes, list):
-                              raise ValueError('CommonAttributes must be a JSON array')
-                          for attribute in attributes:
-                              if not isinstance(attribute, dict):
-                                  raise ValueError("Each element in CommonAttributes should be a JSON object.")
-                              if 'AttributeName' not in attribute or 'AttributeValue' not in attribute:
-                                  raise ValueError("Each element in CommonAttributes should have 'AttributeName' and 'AttributeValue' keys.")
-                              if not attribute['AttributeName'] or not attribute['AttributeValue']:
-                                  raise ValueError("Each element in CommonAttributes should have non-empty 'AttributeName' and 'AttributeValue' values.")
+                          if common_attributes_str.strip(): 
+                              attributes = json.loads(common_attributes_str)
+                              if not isinstance(attributes, list):
+                                  raise ValueError('CommonAttributes must be a JSON array')
+                              for attribute in attributes:
+                                  if not isinstance(attribute, dict):
+                                      raise ValueError("Each element in CommonAttributes should be a JSON object.")
+                                  if 'AttributeName' not in attribute or 'AttributeValue' not in attribute:
+                                      raise ValueError("Each element in CommonAttributes should have 'AttributeName' and 'AttributeValue' keys.")
+                                  if not attribute['AttributeName'] or not attribute['AttributeValue']:
+                                      raise ValueError("Each element in CommonAttributes should have non-empty 'AttributeName' and 'AttributeValue' values.")
 
                           response['UserInputCommonAttributesErrorMessages'] = 'No Errors Found in User Input for setting up custom attributes.' 
                       except Exception as e:
@@ -249,17 +261,18 @@ Resources:
 
                       try:
                           log_group_config = event_data['LogGroupConfig']
-                          log_group_config_json = json.loads(log_group_config)
-                          if not isinstance(log_group_config_json, list):
-                              raise ValueError('LogGroupConfig must be a JSON array')
-                          for log_group in log_group_config_json:
-                              if not isinstance(log_group, dict):
-                                  raise ValueError("Each element in LogGroupConfig should be a JSON object.")
-                              if 'LogGroupName' not in log_group:
-                                  raise ValueError("Each element in LogGroupConfig should have 'LogGroupName' key.")
-                              if not log_group['LogGroupName']:
-                                  raise ValueError("Each element in LogGroupConfig should have non-empty 'LogGroupName' value.")
-
+                          if log_group_config.strip():
+                              log_group_config_json = json.loads(log_group_config)
+                              if not isinstance(log_group_config_json, list):
+                                  raise ValueError('LogGroupConfig must be a JSON array')
+                              for log_group in log_group_config_json:
+                                  if not isinstance(log_group, dict):
+                                      raise ValueError("Each element in LogGroupConfig should be a JSON object.")
+                                  if 'LogGroupName' not in log_group:
+                                      raise ValueError("Each element in LogGroupConfig should have 'LogGroupName' key.")
+                                  if not log_group['LogGroupName']:
+                                      raise ValueError("Each element in LogGroupConfig should have non-empty 'LogGroupName' value.")
+                                      
                           response['LogGroupErrorMessages'] = 'No Errors Found in User Input for Log Group'
                       except Exception as e:
                           logger.error(f'LogGroup provided {log_group_config} is not a valid JSON, the error is:  {str(e)}')

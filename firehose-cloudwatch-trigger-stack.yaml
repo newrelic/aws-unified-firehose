@@ -118,7 +118,7 @@ Resources:
                   log_group_config = json.loads(log_group_config_str)
 
                   # Unique filter name for this stack using firehose ARN
-                  filter_name = f'LoggingFirehoseSubscription_{hashlib.sha256(firehose_arn.encode()).hexdigest()[:20]}'
+                  filter_name = f'NewRelicLogsFirehoseSubscription_{hashlib.sha256(firehose_arn.encode()).hexdigest()[:20]}'
 
                   if request_type in ['Create', 'Update']:                                                   
                       for log_group in log_group_config:                      

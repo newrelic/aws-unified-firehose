@@ -48,6 +48,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - logs:PutSubscriptionFilter
+                  - logs:DeleteSubscriptionFilter
                 Resource: !Ref LogGroupArns
               - Effect: Allow
                 Action:
@@ -97,6 +98,7 @@ Resources:
           import cfnresponse
           import logging
           import os
+          import hashlib
 
           logger = logging.getLogger()
           logger.setLevel(logging.INFO)
@@ -106,32 +108,50 @@ Resources:
           def lambda_handler(event, context):
               response = {}
               try:
-                  if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
-                      event_data = event['ResourceProperties']
-                      firehose_arn = event_data.get('LoggingFirehoseStreamArn', '')
-                      
-                      log_group_config_str = event_data.get('LogGroupConfig', [])
-                      invalid_log_groups = set(event_data.get('InvalidLogGroups', []))
-                      logger.info(f'Invalid Log Groups: {invalid_log_groups}')
-    
-                      # Parsing LogGroupConfig JSON array
-                      log_group_config = json.loads(log_group_config_str)
+                  event_data = event['ResourceProperties']
+                  request_type = event['RequestType']
+                  firehose_arn = event_data.get('LoggingFirehoseStreamArn', '')
+                  log_group_config_str = event_data.get('LogGroupConfig', [])
+                  invalid_log_groups = set(event_data.get('InvalidLogGroups', []))
+
+                  # Parsing LogGroupConfig JSON array
+                  log_group_config = json.loads(log_group_config_str)
+
+                  # Unique filter name for this stack using firehose ARN
+                  filter_name = f'NewRelicLogsFirehoseSubscription_{hashlib.sha256(firehose_arn.encode()).hexdigest()[:20]}'
+
+                  if request_type in ['Create', 'Update']:                                                   
                       for log_group in log_group_config:                      
                           log_group_name = log_group['LogGroupName']
                           if log_group_name in invalid_log_groups:
                               logger.info(f'Log group {log_group_name} is invalid. Skipping...')
                               continue
                           filter_pattern = log_group['FilterPattern'] if 'FilterPattern' in log_group else ''
-
                           cloudwatch_firehose_role_arn = os.environ['CloudWatchFirehoseRoleArn']
 
                           response = log_client.put_subscription_filter(
                             logGroupName=log_group_name,
                             roleArn=cloudwatch_firehose_role_arn,
-                            filterName='LoggingFirehoseSubscription',
+                            filterName=filter_name,
                             filterPattern=filter_pattern,
                             destinationArn=firehose_arn
                           )
+
+                  elif request_type == 'Delete':
+                      try:
+                          for log_group in log_group_config:
+                              log_group_name = log_group['LogGroupName']
+                              if log_group_name in invalid_log_groups:
+                                  logger.info(f'Log group {log_group_name} is invalid. Skipping...')
+                                  continue
+                              
+                              response = log_client.delete_subscription_filter(
+                                logGroupName=log_group_name,
+                                filterName=filter_name
+                              )
+                      except Exception as e:
+                          logger.error(f'Delete failed for the log group subscription filters with error: {str(e)}')
+                          cfnresponse.send(event, context, cfnresponse.SUCCESS, response)
           
                   cfnresponse.send(event, context, cfnresponse.SUCCESS, response)
               except Exception as e:

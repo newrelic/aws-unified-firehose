@@ -108,7 +108,7 @@ Resources:
     Properties:
       Description: The New Relic license key, for sending telemetry
       Name : !Join ['-', ['nr-license-key', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
-      SecretString: !Sub '{ "LicenseKey": "${LicenseKey}"}'
+      SecretString: !Sub '{ "api_key": "${LicenseKey}"}'
 
   NewRelicLogsS3FirehoseEventsBucket:
     Type: AWS::S3::Bucket
@@ -157,6 +157,17 @@ Resources:
                 Action:
                   - logs:PutLogEvents
                 Resource: 'arn:aws:logs:*:*:*'
+        - !If
+          - ShouldCreateSecret
+          - PolicyName: Firehose-SecretsManagerAccess
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - 'secretsmanager:GetSecretValue'
+                  Resource: !Ref NewRelicLogsLicenseKeySecret
+          - !Ref "AWS::NoValue"
       Description: Role to allow firehose stream to access resources including putting events into S3 backup bucket
       RoleName: !Join ['-', ['NewRelicLogsFirehoseRole', !Select [0, !Split ['-', !Select [2, !Split ['/', !Ref 'AWS::StackId' ]]]]]]
   
@@ -222,7 +233,62 @@ Resources:
                       region = event_data['AWS_REGION']
                       account_id = event_data['AWS_ACCOUNT_ID']
                       awsRealm = event_data['AWS_REALM']
+                      common_attributes_str = event_data['CommonAttributes']
+                      isAttributesValid = True
+                      isLogGroupValid = True
+
+                      try:
+                          if common_attributes_str.strip(): 
+                              attributes = json.loads(common_attributes_str)
+                              if not isinstance(attributes, list):
+                                  raise ValueError('CommonAttributes must be a JSON array')
+                              for attribute in attributes:
+                                  if not isinstance(attribute, dict):
+                                      raise ValueError("Each element in CommonAttributes should be a JSON object.")
+                                  if 'AttributeName' not in attribute or 'AttributeValue' not in attribute:
+                                      raise ValueError("Each element in CommonAttributes should have 'AttributeName' and 'AttributeValue' keys.")
+                                  if not attribute['AttributeName'] or not attribute['AttributeValue']:
+                                      raise ValueError("Each element in CommonAttributes should have non-empty 'AttributeName' and 'AttributeValue' values.")
+
+                          response['UserInputCommonAttributesErrorMessages'] = 'No Errors Found in User Input for setting up custom attributes.' 
+                      except Exception as e:
+                          logger.error(f'CommonAttributes provided {common_attributes_str} is not a valid JSON, the error is:  {str(e)}')
+                          isAttributesValid = False
+                          response['UserInputCommonAttributesErrorMessages'] = (
+                              'Validation Failed for Input Provided. The CommonAttributes provided : {} is not a valid JSON. '
+                              'Please provide a valid JSON for CommonAttributes.'.format(common_attributes_str)
+                          )
+
+                      try:
+                          log_group_config = event_data['LogGroupConfig']
+                          if log_group_config.strip():
+                              log_group_config_json = json.loads(log_group_config)
+                              if not isinstance(log_group_config_json, list):
+                                  raise ValueError('LogGroupConfig must be a JSON array')
+                              for log_group in log_group_config_json:
+                                  if not isinstance(log_group, dict):
+                                      raise ValueError("Each element in LogGroupConfig should be a JSON object.")
+                                  if 'LogGroupName' not in log_group:
+                                      raise ValueError("Each element in LogGroupConfig should have 'LogGroupName' key.")
+                                  if not log_group['LogGroupName']:
+                                      raise ValueError("Each element in LogGroupConfig should have non-empty 'LogGroupName' value.")
+                                      
+                          response['LogGroupErrorMessages'] = 'No Errors Found in User Input for Log Group'
+                      except Exception as e:
+                          logger.error(f'LogGroup provided {log_group_config} is not a valid JSON, the error is:  {str(e)}')
+                          isLogGroupValid = False
+                          response['LogGroupErrorMessages'] = (
+                              'Validation Failed for Input Provided. The LogGroup provided : {} is not a valid JSON. '
+                              'Please provide a valid JSON for LogGroup.'.format(log_group_config)
+                          )
                       
+                      if(not isAttributesValid or not isLogGroupValid):
+                          response['LogGroupArns'] = ''
+                          response['InvalidLogGroups'] = ''
+                          response['CommonAttributes']= []
+                          cfnresponse.send(event, context, cfnresponse.SUCCESS, response)
+                          return
+
                       # these parameter are needed for entity synthesis
                       additional_attributes = [
                          {"AttributeName": "aws.accountId", "AttributeValue": account_id},
@@ -233,14 +299,19 @@ Resources:
                          {"AttributeName": "aws.realm", "AttributeValue": awsRealm}
                       ]
 
-
-                      common_attributes_str = event_data['CommonAttributes']
+                      
                       # Convert the json to the correct json format
                       if common_attributes_str.strip():
                           common_attributes = json.loads(common_attributes_str)
                       else:
                           common_attributes = []
 
+                      # Filter out AttributeNames that are needed for entity synthesis from common_attributes
+                      existing_attribute_names = {attr['AttributeName'] for attr in additional_attributes}
+                      common_attributes = [
+                          attr for attr in common_attributes if attr['AttributeName'] not in existing_attribute_names
+                      ]
+                      
                       common_attributes.extend(additional_attributes)
 
                       log_group_config_json = json.loads(event_data.get('LogGroupConfig', '[]').strip() or '[]')
@@ -267,9 +338,9 @@ Resources:
                       response['CommonAttributes'] = common_attributes
                       response['LogGroupArns'] = ','.join(log_group_arns)
                       response['InvalidLogGroups'] = ','.join(invalid_log_groups)
-                      response['ErrorMessages'] = "No Errors Found in User Input"
+                      response['LogGroupErrorMessages'] = "No Errors Found in User Input for Log Group"
                       if invalid_log_groups:
-                            response['ErrorMessages'] = (
+                            response['LogGroupErrorMessages'] = (
                               'Validation Failed for Input Provided. These Log Groups: [{}] do not exist in your account.'
                               'Please setup Cloudwatch to Data Firehose subscription manually for additional log groups including these failed ones to stream with the resource Logical ID: "LoggingFirehoseStreamToNewRelic".'
                               'While setting up the subscription manuually you can use the IAM role with resource Logical ID: "CloudWatchFirehoseRole" created by this deployment.'.format(','.join(invalid_log_groups))
@@ -308,10 +379,10 @@ Resources:
         EndpointConfiguration:
           Name: New Relic
           Url: !FindInMap [NewRelicDatacenterMap, Datacenter, !Ref NewRelicRegion]
-          AccessKey: !If 
-            - ShouldCreateSecret
-            - !Sub '{{resolve:secretsmanager:${NewRelicLogsLicenseKeySecret}:SecretString:LicenseKey}}'
-            - !Ref LicenseKey
+          AccessKey: !If [ShouldCreateSecret, !Ref "AWS::NoValue",!Ref LicenseKey]
+        SecretsManagerConfiguration:
+          Enabled: !If [ShouldCreateSecret, true, false] 
+          SecretARN: !If [ShouldCreateSecret, !Ref NewRelicLogsLicenseKeySecret, !Ref "AWS::NoValue"]
         BufferingHints:
           IntervalInSeconds: 60
           SizeInMBs: 1
@@ -347,6 +418,9 @@ Outputs:
   NewRelicLogsLoggingFirehoseStreamArn:
     Description: The ARN of the Logging DataFirehose Stream.
     Value: !GetAtt NewRelicLogsFirehoseStreamToNewRelic.Arn
-  NewRelicLogsUserInputErrors:
-    Description: Contains Details about Errors in User Input.
-    Value: !GetAtt NewRelicLogsResourceForUserInputParsing.ErrorMessages
+  NewRelicLogsUserInputLogGroupErrors:
+    Description: Contains Details about Errors in User Input for LogGroup.
+    Value: !GetAtt NewRelicLogsResourceForUserInputParsing.LogGroupErrorMessages
+  NewRelicLogsUserInputCommonAttributeErrors:
+    Description: Contains Details about Errors in User Input for setting up Common Attributes in lambda.
+    Value: !GetAtt NewRelicLogsResourceForUserInputParsing.UserInputCommonAttributesErrorMessages

@@ -24,3 +24,21 @@ jobs:
            sam validate --template-file "$template" --region us-east-2 --lint
           done        
         shell: bash
+
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run CFN Nag Security Checks
+        uses: stelligent/cfn_nag@master
+        with:
+          input_path: .
+          extra_args: -o sarif
+          output_path: cfn_nag.sarif
+      - name: Upload CFN Nag SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: cfn_nag.sarif    
+          category: security

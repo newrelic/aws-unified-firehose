@@ -97,7 +97,13 @@ exit_with_error() {
 BASE_NAME=$(basename "$TEMPLATE_FILE_NAME" .yaml)
 BUILD_DIR="$BUILD_DIR_BASE/$BASE_NAME"
 
-sam build -u --template-file "../$TEMPLATE_FILE_NAME" --build-dir "$BUILD_DIR"
+echo "Building and packaging the SAM template: $BASE_NAME"
+echo "Building and packaging the SAM template: $BUILD_DIR"
+echo pwd
+
+
+sam build --template-file "$TEMPLATE_FILE" --build-dir "$BUILD_DIR"
+echo "build done packaging"
 sam package --s3-bucket "$S3_BUCKET" --template-file "$BUILD_DIR/template.yaml" --output-template-file "$BUILD_DIR/$TEMPLATE_FILE_NAME"
 
 
@@ -106,7 +112,7 @@ cat <<EOF > parameter.json
 EOF
 LOG_GROUP_NAMES=$(<parameter.json)
 
-
+echo "Deploying the Firehose stack: $FIREHOSE_STACK_NAME"
 deploy_firehose_stack "$BUILD_DIR/$TEMPLATE_FILE_NAME" "$FIREHOSE_STACK_NAME" "$NEW_RELIC_LICENSE_KEY" "$NEW_RELIC_REGION" "$NEW_RELIC_ACCOUNT_ID" "true" "$LOG_GROUP_NAMES" "''"
 
 validate_stack_deployment_status "$FIREHOSE_STACK_NAME"

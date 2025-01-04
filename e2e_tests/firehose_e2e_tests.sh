@@ -102,7 +102,7 @@ echo "Building and packaging the SAM template: $BUILD_DIR"
 echo pwd
 
 
-sam build --template-file "$TEMPLATE_FILE" --build-dir "$BUILD_DIR"
+sam build --template-file "../$TEMPLATE_FILE_NAME" --build-dir "$BUILD_DIR"
 echo "build done packaging"
 sam package --s3-bucket "$S3_BUCKET" --template-file "$BUILD_DIR/template.yaml" --output-template-file "$BUILD_DIR/$TEMPLATE_FILE_NAME"
 

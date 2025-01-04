@@ -16,15 +16,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install AWS SAM CLI
+        run: |
+          pip install aws-sam-cli
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: ${{ secrets.AWS_E2E_TEST_ROLE }}
           aws-region: us-east-2
-
-      - name: Install AWS SAM CLI
-        run: |
-          pip install aws-sam-cli
 
       - name: Run end to end tests for Firehose
         env:

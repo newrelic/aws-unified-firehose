@@ -22,7 +22,8 @@ deploy_firehose_stack() {
       StoreNRLicenseKeyInSecretManager="$store_secret_in_secret_manager" \
       LogGroupConfig="$log_group_config" \
       CommonAttributes="$common_attributes" \
-    --capabilities CAPABILITY_IAM
+    --capabilities CAPABILITY_NAMED_IAM
+
 }
 
 validate_stack_deployment_status() {
@@ -67,23 +68,32 @@ validate_stack_resources() {
   log_group_name=$2
   log_group_filter=$3
 
-  lambda_physical_id=$(aws cloudformation describe-stack-resources \
+  firehose_stream_physical_id=$(aws cloudformation describe-stack-resources \
                   --stack-name "$stack_name" \
-                  --logical-resource-id "$LAMBDA_LOGICAL_RESOURCE_ID" \
+                  --logical-resource-id "$FIREHOSE_STREAM_LOGICAL_ID" \
                   --query "StackResources[0].PhysicalResourceId" \
                   --output text
   )
-  lambda_function_arn=$(aws lambda get-function --function-name "$lambda_physical_id" \
-                  --query "Configuration.FunctionArn" \
+
+  # Get the ARN of the Firehose delivery stream using the physical ID
+  firehose_stream_arn=$(aws firehose describe-delivery-stream \
+                  --delivery-stream-name "$firehose_stream_physical_id" \
+                  --query "DeliveryStreamDescription.DeliveryStreamARN" \
                   --output text
   )
 
   subscriptions=$(aws logs describe-subscription-filters --log-group-name "$log_group_name" --query 'subscriptionFilters[*].[destinationArn, filterPattern]' --output text)
 
-  if echo "$subscriptions" | grep -q "$lambda_function_arn" && echo "$subscriptions" | grep -q "$log_group_filter"; then
-    echo "Lambda function $lambda_function_arn is subscribed to log group: $log_group_name with filter: $log_group_filter"
+  # Check firehose_stream_arn is not null before checking subscriptions
+  if [ -z "$firehose_stream_arn" ] || [ "$firehose_stream_arn" == "None" ]; then
+    exit_with_error "Failed to retrieve Firehose delivery stream ARN for physical ID: $firehose_stream_physical_id"
+  fi
+
+  # Check if the Firehose delivery stream is subscribed to the log group with the specified filter pattern
+  if echo "$subscriptions" | grep -q "$firehose_stream_arn" && echo "$subscriptions" | grep -q "$log_group_filter"; then
+    echo "Firehose Delivery Stream $firehose_stream_arn is subscribed to log group: $log_group_name with filter: $log_group_filter"
   else
-    exit_with_error "Lambda function $lambda_function_arn is not subscribed to log group: $log_group_name"
+    exit_with_error "Firehose Delivery Stream $firehose_stream_arn is not subscribed to log group: $log_group_name"
   fi
 
 }
@@ -93,17 +103,68 @@ exit_with_error() {
   exit 1
 }
 
+create_log_event() {
+  echo "Creating log event in CloudWatch Log Group"
+  log_group_name=$1
+  log_stream_name=$2
+  log_message=$3
+
+  # Check if the log stream exists
+  log_stream_exists=$(aws logs describe-log-streams --log-group-name "$log_group_name" --log-stream-name-prefix "$log_stream_name" --query "logStreams[?logStreamName=='$log_stream_name'] | length(@)" --output text)
+
+  # Create a log stream
+  if [ "$log_stream_exists" -eq 0 ]; then
+    # Create a log stream if it does not exist
+    aws logs create-log-stream --log-group-name "$log_group_name" --log-stream-name "$log_stream_name"
+  fi
+
+  # Get the current timestamp in milliseconds
+  timestamp=$(($(date +%s) * 1000 + $(date +%N) / 1000000))
+
+  # Put log event
+  aws logs put-log-events \
+    --log-group-name "$log_group_name" \
+    --log-stream-name "$log_stream_name" \
+    --log-events timestamp=$timestamp,message="$log_message"
+
+  echo "Log event created successfully."
+
+}
+
+validate_logs_in_new_relic() {
+  user_key=$1
+  account_id=$2
+  file_name=$3
+
+  nrql_query="SELECT * FROM Log WHERE message LIKE '%$file_name%' SINCE 10 minutes ago"
+  query='{"query":"query($id: Int!, $nrql: Nrql!) { actor { account(id: $id) { nrql(query: $nrql) { results } } } }","variables":{"id":'$account_id',"nrql":"'$nrql_query'"}}'
+
+  for i in {1..10}; do
+    response=$(curl -s -X POST \
+      -H "Content-Type: application/json" \
+      -H "API-Key: $user_key" \
+      -d "$query" \
+      https://api.newrelic.com/graphql)
+
+    if echo "$response" | grep -q "$file_name"; then
+      echo "Log event successfully found in New Relic."
+      return 0
+    else
+      echo "Log event not found in New Relic. Retrying in 30 seconds... ($i/10)"
+      sleep 30
+    fi
+  done
+
+  exit_with_error "Log event not found in New Relic after 10 retries."
+}
+
+
 
 BASE_NAME=$(basename "$TEMPLATE_FILE_NAME" .yaml)
 BUILD_DIR="$BUILD_DIR_BASE/$BASE_NAME"
 
-echo "Building and packaging the SAM template: $BASE_NAME"
-echo "Building and packaging the SAM template: $BUILD_DIR"
-echo pwd
-
 
 sam build --template-file "../$TEMPLATE_FILE_NAME" --build-dir "$BUILD_DIR"
-echo "build done packaging"
 sam package --s3-bucket "$S3_BUCKET" --template-file "$BUILD_DIR/template.yaml" --output-template-file "$BUILD_DIR/$TEMPLATE_FILE_NAME"
 
 
@@ -112,15 +173,28 @@ cat <<EOF > parameter.json
 EOF
 LOG_GROUP_NAMES=$(<parameter.json)
 
-echo "Deploying the Firehose stack: $FIREHOSE_STACK_NAME"
+# Generate a random string to append to the default stack name
+RANDOM_STRING=$(openssl rand -hex 4)
+FIREHOSE_STACK_NAME="${DEFAULT_STACK_NAME}-${RANDOM_STRING}"
+
+# Deploy the Firehose stack
 deploy_firehose_stack "$BUILD_DIR/$TEMPLATE_FILE_NAME" "$FIREHOSE_STACK_NAME" "$NEW_RELIC_LICENSE_KEY" "$NEW_RELIC_REGION" "$NEW_RELIC_ACCOUNT_ID" "true" "$LOG_GROUP_NAMES" "''"
 
+# Validate the status of the Firehose stack
 validate_stack_deployment_status "$FIREHOSE_STACK_NAME"
 
+# Validate the resources created by the Firehose stack
 validate_stack_resources "$FIREHOSE_STACK_NAME" "$LOG_GROUP_NAME" "$LOG_GROUP_FILTER_PATTERN"
 
+# Generate a UUID and create a dynamic log message
+UUID=$(uuidgen)
+LOG_MESSAGE="RequestId: $UUID hello world $LOG_GROUP_FILTER_PATTERN"
+
+# Create a log event in CloudWatch Logs
+create_log_event "$LOG_GROUP_NAME" "$LOG_STREAM_NAME" "$LOG_MESSAGE"
+
+# Validate logs in New Relic
+validate_logs_in_new_relic "$NEW_RELIC_USER_KEY" "$NEW_RELIC_ACCOUNT_ID" "$LOG_MESSAGE"
+
+# Delete the Firehose stack
 delete_stack "$FIREHOSE_STACK_NAME"
-
-
-
-

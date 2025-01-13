@@ -28,7 +28,7 @@ jobs:
 
       - name: Make the e2e test script executable
         run: chmod +x e2e_tests/firehose_e2e_tests.sh
-        run: chmod +x e2e_tests/common-scripts.sh
+             chmod +x e2e_tests/common-scripts.sh
         
       - name: Run end to end tests for Firehose
         env:

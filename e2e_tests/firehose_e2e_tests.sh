@@ -10,10 +10,10 @@ source common-scripts.sh
 test_logs_without_filter_pattern() {
   local template_file=$1
 
-cat <<EOF > parameter.json
+cat <<EOF > log_group.json
 '[{"LogGroupName":"$LOG_GROUP_NAME_1"}]'
 EOF
-LOG_GROUP_NAME_JSON=$(<parameter.json)
+LOG_GROUP_JSON=$(<log_group.json)
 
 cat <<EOF > common_attribute.json
 '[{"AttributeName":"$COMMON_ATTRIBUTE_KEY","AttributeValue":"$COMMON_ATTRIBUTE_VALUE"}]'
@@ -21,7 +21,7 @@ EOF
 COMMON_ATTRIBUTES=$(<common_attribute.json)
 
   # Deploy the Firehose stack
-  deploy_firehose_stack "$template_file" "$FIREHOSE_STACK_NAME_1" "$NEW_RELIC_LICENSE_KEY" "$NEW_RELIC_REGION" "$NEW_RELIC_ACCOUNT_ID" "true" "$LOG_GROUP_NAME_JSON" "$COMMON_ATTRIBUTES"
+  deploy_firehose_stack "$template_file" "$FIREHOSE_STACK_NAME_1" "$NEW_RELIC_LICENSE_KEY" "$NEW_RELIC_REGION" "$NEW_RELIC_ACCOUNT_ID" "true" "$LOG_GROUP_JSON" "$COMMON_ATTRIBUTES"
   
   # Validate the status of the Firehose stack
   validate_stack_deployment_status "$FIREHOSE_STACK_NAME_1"
@@ -53,10 +53,10 @@ COMMON_ATTRIBUTES=$(<common_attribute.json)
 test_logs_with_filter_pattern() {
   local template_file=$1
 
-cat <<EOF > parameter.json
+cat <<EOF > log_group_filter.json
 '[{"LogGroupName":"$LOG_GROUP_NAME_2","FilterPattern":"$LOG_GROUP_FILTER_PATTERN"}]'
 EOF
-LOG_GROUP_NAME_JSON=$(<parameter.json)
+LOG_GROUP_NAME_JSON=$(<log_group_filter.json)
 
 cat <<EOF > common_attribute.json
 '[{"AttributeName":"$COMMON_ATTRIBUTE_KEY","AttributeValue":"$COMMON_ATTRIBUTE_VALUE"}]'
@@ -82,7 +82,7 @@ COMMON_ATTRIBUTES=$(<common_attribute.json)
   # Validate logs in New Relic (should exist)
   validate_logs_in_new_relic "$NEW_RELIC_USER_KEY" "$NEW_RELIC_ACCOUNT_ID" "$LOG_MESSAGE" "true"
 
-   # Generate a UUID and create a dynamic log message without the filter pattern
+  # Generate a UUID and create a dynamic log message without the filter pattern
   UUID=$(uuidgen)
   LOG_MESSAGE="RequestId: $UUID hello world"
 
@@ -102,13 +102,13 @@ COMMON_ATTRIBUTES=$(<common_attribute.json)
 test_logs_with_invalid_log_group() {
   local template_file=$1
 
-cat <<EOF > parameter.json
+cat <<EOF > invalid_log_group.json
 '[{"LogGroupName":"$INVALID_LOG_GROUP_NAME"}]'
 EOF
-LOG_GROUP_NAME_JSON=$(<parameter.json)
+LOG_GROUP_INVALID_JSON=$(<invalid_log_group.json)
 
   # Deploy the Firehose stack
-  deploy_firehose_stack "$template_file" "$FIREHOSE_STACK_NAME_3" "$NEW_RELIC_LICENSE_KEY" "$NEW_RELIC_REGION" "$NEW_RELIC_ACCOUNT_ID" "true" "$LOG_GROUP_NAME_JSON" "''"
+  deploy_firehose_stack "$template_file" "$FIREHOSE_STACK_NAME_3" "$NEW_RELIC_LICENSE_KEY" "$NEW_RELIC_REGION" "$NEW_RELIC_ACCOUNT_ID" "true" "$LOG_GROUP_INVALID_JSON" "''"
   
   # Validate the status of the Firehose stack
   validate_stack_deployment_status "$FIREHOSE_STACK_NAME_3"

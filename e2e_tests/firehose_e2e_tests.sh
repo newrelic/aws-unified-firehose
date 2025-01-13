@@ -131,12 +131,19 @@ sam package --s3-bucket "$S3_BUCKET" --template-file "$BUILD_DIR/template.yaml" 
 
 # Run Test Case 1: Logs without filter pattern
 test_logs_without_filter_pattern  "$BUILD_DIR/$TEMPLATE_FILE_NAME" &
+pid1=$!
 
 # Run Test Case 2: Logs with filter pattern
 test_logs_with_filter_pattern "$BUILD_DIR/$TEMPLATE_FILE_NAME" &
+pid2=$!
 
 # Run Test Case 3: Create stack with invalid log group
 test_logs_with_invalid_log_group "$BUILD_DIR/$TEMPLATE_FILE_NAME" &
+pid3=$!
 
-# Wait for all background jobs to complete
-wait
+# Check exit statuses of background jobs
+if wait $pid1 && wait $pid2 && wait $pid3; then
+  log "All tests passed successfully."
+else
+  exit_with_error "One or more tests failed."
+fi

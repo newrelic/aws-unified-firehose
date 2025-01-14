@@ -125,25 +125,23 @@ LOG_GROUP_INVALID_JSON=$(<invalid_log_group.json)
 BASE_NAME=$(basename "$TEMPLATE_FILE_NAME" .yaml)
 BUILD_DIR="$BUILD_DIR_BASE/$BASE_NAME"
 
-
+# Build and package the SAM template
 sam build --template-file "../$TEMPLATE_FILE_NAME" --build-dir "$BUILD_DIR"
 sam package --s3-bucket "$S3_BUCKET" --template-file "$BUILD_DIR/template.yaml" --output-template-file "$BUILD_DIR/$TEMPLATE_FILE_NAME"
 
-# Run Test Case 1: Logs without filter pattern
-test_logs_without_filter_pattern  "$BUILD_DIR/$TEMPLATE_FILE_NAME" &
-pid1=$!
-
-# Run Test Case 2: Logs with filter pattern
-test_logs_with_filter_pattern "$BUILD_DIR/$TEMPLATE_FILE_NAME" &
-pid2=$!
-
-# Run Test Case 3: Create stack with invalid log group
-test_logs_with_invalid_log_group "$BUILD_DIR/$TEMPLATE_FILE_NAME" &
-pid3=$!
-
-# Check exit statuses of background jobs
-if wait $pid1 && wait $pid2 && wait $pid3; then
-  log "All tests passed successfully."
-else
-  exit_with_error "One or more tests failed."
-fi
+# Run the test cases
+case $1 in
+  test-without-filter)
+    test_logs_without_filter_pattern "$BUILD_DIR/$TEMPLATE_FILE_NAME"
+    ;;
+  test-with-filter)
+    test_logs_with_filter_pattern "$BUILD_DIR/$TEMPLATE_FILE_NAME"
+    ;;
+  test-with-invalid-log-group)
+    test_logs_with_invalid_log_group "$BUILD_DIR/$TEMPLATE_FILE_NAME"
+    ;;
+  *)
+    echo "Invalid test case specified. Use 'test-case-1', 'test-case-2', or 'test-case-3'."
+    exit 1
+    ;;
+esac

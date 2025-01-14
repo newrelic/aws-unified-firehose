@@ -12,6 +12,10 @@ jobs:
       id-token: write
       contents: write
 
+    strategy:
+      matrix:
+        test-case: [test-without-filter, test-with-filter, test-with-invalid-log-group]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -37,5 +41,5 @@ jobs:
           NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
         run: |
           cd e2e_tests/
-          ./firehose_e2e_tests.sh
+          ./firehose_e2e_tests.sh ${{ matrix.test-case }}
 

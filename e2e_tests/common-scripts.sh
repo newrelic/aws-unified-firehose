@@ -156,9 +156,6 @@ validate_logs_in_new_relic() {
   local common_attributes=$4
   local should_log_exist=$5
 
-  # Debug: Print the JSON input to check
-  echo "Common Attributes JSON: $common_attributes" >&2
-
   local nrql_query="SELECT * FROM Log WHERE message LIKE '%$log_message%' SINCE 10 minutes ago"
   local query='{"query":"query($id: Int!, $nrql: Nrql!) { actor { account(id: $id) { nrql(query: $nrql) { results } } } }","variables":{"id":'$account_id',"nrql":"'$nrql_query'"}}'
 
@@ -197,8 +194,8 @@ validate_logs_meta_data (){
   local response=$1
   local common_attributes=$2
 
-  # Debug: Print the JSON input to check
-  echo "Common Attributes JSON 2: $common_attributes" >&2
+  # Remove single quotes from common_attributes
+  common_attributes=$(echo "$common_attributes" | sed "s/'//g")
 
   # Validate common attributes
   for attribute in $(echo "$common_attributes" | jq -c '.[]'); do

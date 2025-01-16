@@ -8,7 +8,7 @@ source common-scripts.sh
 # Create a unique log message in CloudWatch Logs
 # Validate the logs in New Relic
 test_logs_without_filter_pattern() {
-  local template_file=$1
+  local template_file=$TEMPLATE_FILE_FULL_PATH
 
 cat <<EOF > log_group.json
 '[{"LogGroupName":"$LOG_GROUP_NAME_1"}]'
@@ -37,7 +37,7 @@ COMMON_ATTRIBUTES=$(<common_attribute.json)
   create_log_event "$LOG_GROUP_NAME_1" "$LOG_STREAM_NAME" "$LOG_MESSAGE"
 
   # Validate logs in New Relic
-  validate_logs_in_new_relic "$NEW_RELIC_USER_KEY" "$NEW_RELIC_ACCOUNT_ID" "$LOG_MESSAGE" "true"
+  validate_logs_in_new_relic "$NEW_RELIC_USER_KEY" "$NEW_RELIC_ACCOUNT_ID" "$LOG_MESSAGE" "$COMMON_ATTRIBUTES" "true"
 
   # Delete the Firehose stack
   delete_stack "$FIREHOSE_STACK_NAME_1"
@@ -51,7 +51,7 @@ COMMON_ATTRIBUTES=$(<common_attribute.json)
 # Validate that the log message should not exist in New Relic
 
 test_logs_with_filter_pattern() {
-  local template_file=$1
+  local template_file=$TEMPLATE_FILE_FULL_PATH
 
 cat <<EOF > log_group_filter.json
 '[{"LogGroupName":"$LOG_GROUP_NAME_2","FilterPattern":"$LOG_GROUP_FILTER_PATTERN"}]'
@@ -80,7 +80,7 @@ COMMON_ATTRIBUTES=$(<common_attribute.json)
   create_log_event "$LOG_GROUP_NAME_2" "$LOG_STREAM_NAME" "$LOG_MESSAGE"
 
   # Validate logs in New Relic (should exist)
-  validate_logs_in_new_relic "$NEW_RELIC_USER_KEY" "$NEW_RELIC_ACCOUNT_ID" "$LOG_MESSAGE" "true"
+  validate_logs_in_new_relic "$NEW_RELIC_USER_KEY" "$NEW_RELIC_ACCOUNT_ID" "$LOG_MESSAGE" "$COMMON_ATTRIBUTES" "true"
 
   # Generate a UUID and create a dynamic log message without the filter pattern
   UUID=$(uuidgen)
@@ -90,7 +90,7 @@ COMMON_ATTRIBUTES=$(<common_attribute.json)
   create_log_event "$LOG_GROUP_NAME_2" "$LOG_STREAM_NAME" "$LOG_MESSAGE"
 
   # Validate logs in New Relic (should not exist)
-  validate_logs_in_new_relic "$NEW_RELIC_USER_KEY" "$NEW_RELIC_ACCOUNT_ID" "$LOG_MESSAGE" "false"
+  validate_logs_in_new_relic "$NEW_RELIC_USER_KEY" "$NEW_RELIC_ACCOUNT_ID" "$LOG_MESSAGE" "$COMMON_ATTRIBUTES" "false"
 
   # Delete the Firehose stack
   delete_stack "$FIREHOSE_STACK_NAME_2"
@@ -100,7 +100,7 @@ COMMON_ATTRIBUTES=$(<common_attribute.json)
 # Creating Firehose stack with Invalid Log Group Name 
 # Validate that the Firehose stack is created successfully with Firehose delivery stream
 test_logs_with_invalid_log_group() {
-  local template_file=$1
+  local template_file=$TEMPLATE_FILE_FULL_PATH
 
 cat <<EOF > invalid_log_group.json
 '[{"LogGroupName":"$INVALID_LOG_GROUP_NAME"}]'
@@ -129,19 +129,20 @@ BUILD_DIR="$BUILD_DIR_BASE/$BASE_NAME"
 sam build --template-file "../$TEMPLATE_FILE_NAME" --build-dir "$BUILD_DIR"
 sam package --s3-bucket "$S3_BUCKET" --template-file "$BUILD_DIR/template.yaml" --output-template-file "$BUILD_DIR/$TEMPLATE_FILE_NAME"
 
-# Run the test cases
+
+Run the test cases
 case $1 in
   test-without-filter)
-    test_logs_without_filter_pattern "$BUILD_DIR/$TEMPLATE_FILE_NAME"
+    test_logs_without_filter_pattern 
     ;;
   test-with-filter)
-    test_logs_with_filter_pattern "$BUILD_DIR/$TEMPLATE_FILE_NAME"
+    test_logs_with_filter_pattern 
     ;;
   test-with-invalid-log-group)
-    test_logs_with_invalid_log_group "$BUILD_DIR/$TEMPLATE_FILE_NAME"
+    test_logs_with_invalid_log_group 
     ;;
   *)
-    echo "Invalid test case specified. Use 'test-case-1', 'test-case-2', or 'test-case-3'."
+    echo "Invalid test case specified."
     exit 1
     ;;
 esac

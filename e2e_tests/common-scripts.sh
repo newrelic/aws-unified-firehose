@@ -152,50 +152,36 @@ create_log_event() {
 validate_logs_in_new_relic() {
   local user_key=$1
   local account_id=$2
-  local file_name=$3
-  local should_log_exist=$4
+  local log_message=$3
+  local common_attributes=$4
+  local should_log_exist=$5
 
-  local nrql_query="SELECT * FROM Log WHERE message LIKE '%$file_name%' SINCE 10 minutes ago"
+  # Debug: Print the JSON input to check
+  echo "Common Attributes JSON: $common_attributes" >&2
+
+  local nrql_query="SELECT * FROM Log WHERE message LIKE '%$log_message%' SINCE 10 minutes ago"
   local query='{"query":"query($id: Int!, $nrql: Nrql!) { actor { account(id: $id) { nrql(query: $nrql) { results } } } }","variables":{"id":'$account_id',"nrql":"'$nrql_query'"}}'
 
   local log_message_exists=false
-  for i in {1..10}; do
-    response=$(curl -s -X POST \
+
+  sleep_time=$SLEEP_TIME
+
+  for i in {1..5}; do
+    local response=$(curl -s -X POST \
       -H "Content-Type: application/json" \
       -H "API-Key: $user_key" \
       -d "$query" \
       https://api.newrelic.com/graphql)
 
-    if echo "$response" | grep -q "$file_name"; then
+    if echo "$response" | grep -q "$log_message"; then
       log "Log event successfully found in New Relic."
       log_message_exists=true
-
-      # Validate common attributes
-      for attribute in $(echo "$common_attributes" | jq -c '.[]'); do
-        attribute_name=$(echo "$attribute" | jq -r '.AttributeName')
-        attribute_value=$(echo "$attribute" | jq -r '.AttributeValue')
-        if ! echo "$response" | grep -q "\"$attribute_name\":\"$attribute_value\""; then
-          exit_with_error "Common attribute $attribute_name with value $attribute_value not found in New Relic logs."
-        fi
-      done
-      log "Common attributes validated successfully."
-
-      # Validate default attributes and their values
-      default_attributes=("instrumentation.provider=aws" "instrumentation.name=firehose" "instrumentation.version=1.0.0")
-      
-      for attribute in "${default_attributes[@]}"; do
-        key="${attribute%%=*}"
-        expected_value="${attribute##*=}"
-        if ! echo "$response" | grep -q "\"$key\":\"$expected_value\""; then
-          exit_with_error "Default attribute $key with value $expected_value not found in New Relic logs."
-        fi
-      done
-      log "Entity synthesis parameter validated successfully."
-
+      validate_logs_meta_data "$response" "$common_attributes"
       break
     else
-      log "Log event not found in New Relic. Retrying in 30 seconds... ($i/10)"
-      sleep 30
+      log "Log event not found in New Relic. Retrying in $sleep_time seconds..."
+      sleep $sleep_time
+      sleep_time=$(( sleep_time * 2 ))
     fi
   done
 
@@ -207,3 +193,32 @@ validate_logs_in_new_relic() {
 
 }
 
+validate_logs_meta_data (){
+  local response=$1
+  local common_attributes=$2
+
+  # Debug: Print the JSON input to check
+  echo "Common Attributes JSON 2: $common_attributes" >&2
+
+  # Validate common attributes
+  for attribute in $(echo "$common_attributes" | jq -c '.[]'); do
+    attribute_name=$(echo "$attribute" | jq -r '.AttributeName')
+    attribute_value=$(echo "$attribute" | jq -r '.AttributeValue')
+    if ! echo "$response" | grep -q "\"$attribute_name\":\"$attribute_value\""; then
+      exit_with_error "Common attribute $attribute_name with value $attribute_value not found in New Relic logs."
+    fi
+  done
+  log "Common attributes validated successfully."
+
+  # Read default attributes from config file and replace underscores with dots
+  while IFS='=' read -r key value; do
+    if [[ $key == instrumentation_* ]]; then
+      new_key=$(echo "$key" | sed 's/_/./g')
+      if ! echo "$response" | grep -q "\"$new_key\":\"$value\""; then
+        exit_with_error "Entity synthesis attribute $new_key with value $value not found in New Relic logs."
+      fi
+    fi
+  done < config-file.cfg
+
+  log "Entity synthesis parameter validated successfully."
+}

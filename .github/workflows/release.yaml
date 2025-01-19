@@ -14,13 +14,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Check if version.cfg is updated
-        run: |
-          if ! git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "version.cfg"; then
-            echo "Error: version.cfg must be updated in this pull request."
-            exit 1
-          fi
       
       - name: Update Instrumentation Version
         run: |

@@ -166,27 +166,22 @@ BUILD_DIR="$BUILD_DIR_BASE/$BASE_NAME"
 sam build --template-file "../$TEMPLATE_FILE_NAME" --build-dir "$BUILD_DIR"
 sam package --s3-bucket "$S3_BUCKET" --template-file "$BUILD_DIR/template.yaml" --output-template-file "$BUILD_DIR/$TEMPLATE_FILE_NAME"
 
-test_logs_without_filter_pattern &
-test_logs_with_filter_pattern &
-test_logs_with_invalid_log_group &
-test_with_store_secret_manager_false &
-
-# Run the test cases
-# case $1 in
-#   test-without-filter)
-#     test_logs_without_filter_pattern 
-#     ;;
-#   test-with-filter)
-#     test_logs_with_filter_pattern 
-#     ;;
-#   test-with-invalid-log-group)
-#     test_logs_with_invalid_log_group 
-#     ;;
-#   test-with-secret-manager-false)
-#     test_with_store_secret_manager_false 
-#     ;;    
-#   *)
-#     echo "Invalid test case specified."
-#     exit 1
-#     ;;
-# esac
+Run the test cases
+case $1 in
+  test-without-filter)
+    test_logs_without_filter_pattern 
+    ;;
+  test-with-filter)
+    test_logs_with_filter_pattern 
+    ;;
+  test-with-invalid-log-group)
+    test_logs_with_invalid_log_group 
+    ;;
+  test-with-secret-manager-false)
+    test_with_store_secret_manager_false 
+    ;;    
+  *)
+    echo "Invalid test case specified."
+    exit 1
+    ;;
+esac

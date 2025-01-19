@@ -39,7 +39,7 @@ validate_logs_in_new_relic() {
   sleep_time=$SLEEP_TIME
   max_attempts=5
 
-  for i in {1..$max_attempts}; do
+  for ((i=1; i<=max_attempts; i++)); do
     local response=$(curl -s -X POST \
       -H "Content-Type: application/json" \
       -H "API-Key: $user_key" \
@@ -91,7 +91,7 @@ validate_logs_meta_data (){
         exit_with_error "Entity synthesis attribute $new_key with value $value not found in New Relic logs."
       fi
     fi
-  done < entiy_synthesis_param.cfg
+  done < entity_synthesis_param.cfg
 
   log "Entity synthesis parameter validated successfully."
 }

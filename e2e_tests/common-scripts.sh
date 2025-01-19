@@ -112,8 +112,6 @@ validate_stack_resources_with_subscription() {
 
 validate_stack_resources_without_subscription() {
   local stack_name=$1
-  local log_group_name=$2
-
 
   log "Validating stack resources for stack: $stack_name"
   firehose_stream_physical_id=$(aws cloudformation describe-stack-resources \

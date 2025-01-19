@@ -3,7 +3,7 @@ name: Build and Deploy AWS Unified Firehose
 on:
   push:
     branches:
-      - main
+      - hr_temp
 
 jobs:
   build-and-deploy:
@@ -15,21 +15,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          role-to-assume: ${{ secrets.AWS_S3_PUBLISHER_ROLE }}
-          aws-region: us-east-2
-
-      - name: Install AWS SAM CLI
+      - name: Check if version.cfg is updated
         run: |
-          pip install aws-sam-cli
-
-      - name: Build SAM Application
-        run: sam build --template-file firehose-template.yaml --region us-east-2
-
-      - name: Package SAM Application
-        run: sam package --s3-bucket unified-lambda-serverless --output-template-file firehose-template.yaml --region us-east-2
-
-      - name: Upload CloudFormation Template to S3
-        run: aws s3 cp firehose-template.yaml s3://unified-lambda-serverless/firehose-template.yaml
+          if ! git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "version.cfg"; then
+            echo "Error: version.cfg must be updated in this pull request."
+            exit 1
+          fi
+      
+      - name: Update Instrumentation Version
+        run: |
+          version=$(grep 'instrumentation_version' version.cfg | cut -d '=' -f2)
+          sed -i "s/{{INSTRUMENTATION_VERSION}}/$version/" firehose-template.yaml

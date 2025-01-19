@@ -295,7 +295,7 @@ Resources:
                          {"AttributeName": "aws.region", "AttributeValue": region},
                          {"AttributeName": "instrumentation.provider", "AttributeValue": "aws"},
                          {"AttributeName": "instrumentation.name", "AttributeValue": "firehose"},
-                         {"AttributeName": "instrumentation.version", "AttributeValue": "1.0.0"},
+                         {"AttributeName": "instrumentation.version", "AttributeValue": "{{INSTRUMENTATION_VERSION}}"},
                          {"AttributeName": "aws.realm", "AttributeValue": awsRealm}
                       ]
 

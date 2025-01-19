@@ -1,7 +1,7 @@
 name: E2E Test Workflow For Firehose
 
 on:
-  push:
+  pull_request:
     branches:
       - main
       - develop
@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        test-case: [test-without-filter, test-with-filter, test-with-invalid-log-group]
+        test-case: [test-without-filter, test-with-filter, test-with-invalid-log-group, test-with-secret-manager-false]
 
     steps:
       - name: Checkout code

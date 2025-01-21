@@ -1,4 +1,4 @@
-#Building and deploying the changes
+# Building and deploying the changes
 BASE_NAME=$(basename "$TEMPLATE_FILE_NAME" .yaml)
 BUILD_DIR="$BUILD_DIR_BASE/$BASE_NAME"
 

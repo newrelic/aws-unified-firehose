@@ -109,9 +109,15 @@ validate_stack_resources_with_subscription() {
 
   subscriptions=$(aws logs describe-subscription-filters --log-group-name "$log_group_name" --query 'subscriptionFilters[*].[destinationArn, filterPattern]' --output text)
 
-  # Check if the Firehose delivery stream is subscribed to the log group with the specified filter pattern
-  if echo "$subscriptions" | grep -q "$firehose_stream_arn" && echo "$subscriptions" | grep -q "$log_group_filter"; then
-    log "Firehose Delivery Stream $firehose_stream_arn is subscribed to log group: $log_group_name with filter: $log_group_filter"
+  # Check if the Firehose delivery stream is subscribed to the log group
+  if echo "$subscriptions" | grep -q "$firehose_stream_arn"; then
+    if [ -z "$log_group_filter" ] || [ "$log_group_filter" == "''" ]; then
+      log "Firehose Delivery Stream $firehose_stream_arn is subscribed to log group: $log_group_name"
+    elif echo "$subscriptions" | grep -q "$log_group_filter"; then
+      log "Firehose Delivery Stream $firehose_stream_arn is subscribed to log group: $log_group_name with filter: $log_group_filter"
+    else
+      exit_with_error "Firehose Delivery Stream $firehose_stream_arn is not subscribed to log group: $log_group_name with filter: $log_group_filter"
+    fi
   else
     exit_with_error "Firehose Delivery Stream $firehose_stream_arn is not subscribed to log group: $log_group_name"
   fi

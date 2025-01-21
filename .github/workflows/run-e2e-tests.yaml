@@ -1,7 +1,7 @@
 name: E2E Test Workflow For Firehose
 
 on:
-  pull_request:
+  push:
     branches:
       - main
       - develop

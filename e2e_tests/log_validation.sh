@@ -11,8 +11,8 @@ create_log_event() {
     aws logs create-log-stream --log-group-name "$log_group_name" --log-stream-name "$log_stream_name"
   fi
 
-  # Get the current timestamp in milliseconds
-  timestamp=$(($(date +%s) * 1000 + $(date +%N) / 1000000))
+  # Get the current timestamp
+  timestamp=$(date +%s000)
 
   # Put log event
   aws logs put-log-events \

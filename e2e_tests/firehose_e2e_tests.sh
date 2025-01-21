@@ -28,7 +28,7 @@ COMMON_ATTRIBUTES=$(<common_attribute.json)
   validate_stack_deployment_status "$FIREHOSE_STACK_NAME_1"
 
   # Validate the stack resources
-  validate_stack_resources_without_subscription "$FIREHOSE_STACK_NAME_1"
+  validate_stack_resources_with_subscription "$FIREHOSE_STACK_NAME_1" "$LOG_GROUP_NAME_1" "''"
 
   # Generate a UUID and create a dynamic log message
   UUID=$(uuidgen)
@@ -114,9 +114,6 @@ LOG_GROUP_INVALID_JSON=$(<invalid_log_group.json)
   # Validate the status of the Firehose stack
   validate_stack_resources_without_subscription "$FIREHOSE_STACK_NAME_3"
 
-  # Validate the stack resources
-  validate_stack_resources "$FIREHOSE_STACK_NAME_3" "true" "''" "''"
-
   # Delete the Firehose stack
   delete_stack "$FIREHOSE_STACK_NAME_3"
 }
@@ -141,7 +138,7 @@ COMMON_ATTRIBUTES=$(<common_attribute.json)
   validate_stack_deployment_status "$FIREHOSE_STACK_NAME_4"
 
   # Validate the stack resources
-  validate_stack_resources_without_subscription "$FIREHOSE_STACK_NAME_4" "$LOG_GROUP_NAME_1"
+  validate_stack_resources_with_subscription "$FIREHOSE_STACK_NAME_4" "$LOG_GROUP_NAME_4" "''"
 
   # Generate a UUID and create a dynamic log message
   UUID=$(uuidgen)

@@ -73,47 +73,10 @@ delete_stack() {
   fi
 }
 
-validate_stack_resources_with_subscription() {
-  local stack_name=$1
-  local log_group_name=$2
-  local log_group_filter=$3
-
-
-  log "Validating stack resources for stack: $stack_name"
-  firehose_stream_physical_id=$(aws cloudformation describe-stack-resources \
-                  --stack-name "$stack_name" \
-                  --logical-resource-id "$FIREHOSE_STREAM_LOGICAL_ID" \
-                  --query "StackResources[0].PhysicalResourceId" \
-                  --output text
-  )
-
-  # Get the ARN of the Firehose delivery stream using the physical ID
-  firehose_stream_arn=$(aws firehose describe-delivery-stream \
-                  --delivery-stream-name "$firehose_stream_physical_id" \
-                  --query "DeliveryStreamDescription.DeliveryStreamARN" \
-                  --output text
-  )
-
-  # Check firehose_stream_arn is not null before checking subscriptions
-  if [ -z "$firehose_stream_arn" ] || [ "$firehose_stream_arn" == "None" ]; then
-    exit_with_error "Failed to retrieve Firehose delivery stream ARN for physical ID: $firehose_stream_physical_id"
-  fi
-
-  subscriptions=$(aws logs describe-subscription-filters --log-group-name "$log_group_name" --query 'subscriptionFilters[*].[destinationArn, filterPattern]' --output text)
-
-  # Check if the Firehose delivery stream is subscribed to the log group with the specified filter pattern
-  if echo "$subscriptions" | grep -q "$firehose_stream_arn" && echo "$subscriptions" | grep -q "$log_group_filter"; then
-    log "Firehose Delivery Stream $firehose_stream_arn is subscribed to log group: $log_group_name with filter: $log_group_filter"
-  else
-    exit_with_error "Firehose Delivery Stream $firehose_stream_arn is not subscribed to log group: $log_group_name"
-  fi
-
-}
-
-validate_stack_resources_without_subscription() {
+validate_and_get_firehose_stream_arn() {
   local stack_name=$1
 
-  log "Validating stack resources for stack: $stack_name"
+  log "Retrieving Firehose stream ARN for stack: $stack_name"
   firehose_stream_physical_id=$(aws cloudformation describe-stack-resources \
                   --stack-name "$stack_name" \
                   --logical-resource-id "$FIREHOSE_STREAM_LOGICAL_ID" \
@@ -132,6 +95,35 @@ validate_stack_resources_without_subscription() {
   if [ -z "$firehose_stream_arn" ] || [ "$firehose_stream_arn" == "None" ]; then
     exit_with_error "Failed to retrieve Firehose delivery stream ARN for physical ID: $firehose_stream_physical_id"
   fi
+
+  echo "$firehose_stream_arn"
+}
+
+validate_stack_resources_with_subscription() {
+  local stack_name=$1
+  local log_group_name=$2
+  local log_group_filter=$3
+
+  log "Validating stack resources for stack: $stack_name"
+  firehose_stream_arn=$(validate_and_get_firehose_stream_arn "$stack_name")
+
+  subscriptions=$(aws logs describe-subscription-filters --log-group-name "$log_group_name" --query 'subscriptionFilters[*].[destinationArn, filterPattern]' --output text)
+
+  # Check if the Firehose delivery stream is subscribed to the log group with the specified filter pattern
+  if echo "$subscriptions" | grep -q "$firehose_stream_arn" && echo "$subscriptions" | grep -q "$log_group_filter"; then
+    log "Firehose Delivery Stream $firehose_stream_arn is subscribed to log group: $log_group_name with filter: $log_group_filter"
+  else
+    exit_with_error "Firehose Delivery Stream $firehose_stream_arn is not subscribed to log group: $log_group_name"
+  fi
+
+}
+
+validate_stack_resources_without_subscription() {
+  local stack_name=$1
+
+  log "Validating stack resources for stack: $stack_name"
+  validate_and_get_firehose_stream_arn "$stack_name"
+
 }
 
 

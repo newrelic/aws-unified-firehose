@@ -1,6 +1,6 @@
 # Building and deploying the changes
 BASE_NAME=$(basename "$TEMPLATE_FILE_NAME" .yaml)
-BUILD_DIR="$BUILD_DIR_BASE/$BASE_NAME"
+BUILD_DIR="$BASE_NAME"
 
 # Build and package the SAM template
 sam build --template-file "../$TEMPLATE_FILE_NAME" --build-dir "$BUILD_DIR"

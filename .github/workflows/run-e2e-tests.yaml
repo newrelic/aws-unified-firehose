@@ -1,7 +1,7 @@
 name: E2E Test Workflow For Firehose
 
 on:
-  push:
+  pull_request:
     branches:
       - main
       - develop
@@ -37,5 +37,6 @@ jobs:
           NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
         run: |
           cd e2e_tests/
+          ./build_template.sh
           ./firehose_e2e_tests.sh ${{ matrix.test-case }}
 

@@ -1,0 +1,54 @@
+name: E2E Test Workflow For Firehose
+
+on:
+  pull_request_review:
+    types:
+      - submitted
+  schedule:
+    - cron: '0 0 1 * *'
+
+jobs:
+  deploy-and-test:
+    if: github.event.review.state == 'approved'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+
+    strategy:
+      matrix:
+        test-case: [test-without-filter, test-with-filter, test-with-invalid-log-group, test-with-secret-manager-false]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install AWS SAM CLI
+        run: |
+          pip install aws-sam-cli
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ secrets.AWS_E2E_TEST_ROLE }}
+          aws-region: us-east-2
+        
+      - name: Run end to end tests for Firehose
+        env:
+          NEW_RELIC_USER_KEY: ${{ secrets.NEW_RELIC_USER_KEY }}
+          NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
+          S3_BUCKET: unified-firehose-test-bucket
+          TEMPLATE_FILE_NAME: firehose-template.yaml
+        run: |
+          cd e2e_tests/
+          ./build_template.sh
+          ./firehose_e2e_tests.sh ${{ matrix.test-case }}
+
+      - name: Send failure notification to Slack
+        if: always()
+        uses: ravsamhq/notify-slack-action@v1
+        with:
+          status: ${{ job.status }}
+          notify_when: 'failure'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

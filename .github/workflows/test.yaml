@@ -28,7 +28,10 @@ jobs:
       - name: Update Instrumentation Version
         run: |
           version=$(grep 'instrumentation_version' version.yaml | cut -d ' ' -f2)
-          sed -i "s/instrumentation.version: .*/instrumentation.version: $version/" firehose-template.yaml
+          echo "Version found: $version"
+          sed -i "s/instrumentation.version: .*/instrumentation.version: \"$version\"/" firehose-template.yaml
+          echo "updated firehose template"
+          cat firehose-template.yaml
 
       - name: Build SAM Application
         run: sam build --template-file firehose-template.yaml --region us-east-2

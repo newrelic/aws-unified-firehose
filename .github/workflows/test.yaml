@@ -29,7 +29,7 @@ jobs:
         run: |
           version=$(grep 'instrumentation_version' version.yaml | cut -d ' ' -f2)
           echo "Version found: $version"
-          sed -i "s/instrumentation.version: .*/instrumentation.version: \"$version\"/" firehose-template.yaml
+          sed -i '' "s/\"instrumentation.version\", \"AttributeValue\": \".*\"/\"instrumentation.version\", \"AttributeValue\": \"$version\"/" firehose-template.yaml
           echo "updated firehose template"
           cat firehose-template.yaml
 

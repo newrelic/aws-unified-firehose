@@ -16,7 +16,7 @@ Metadata:
     ReadmeUrl: README.md
     HomePageUrl: https://github.com/newrelic/aws-unified-firehose-logging
     SemanticVersion: 0.0.17
-    SourceCodeUrl: https://github.com/newrelic/aws-unified-firehose-logging # TODO update this when the repo is public.
+    SourceCodeUrl: https://github.com/newrelic/aws-unified-firehose-logging 
   
   AWS::CloudFormation::Interface:
     ParameterLabels:

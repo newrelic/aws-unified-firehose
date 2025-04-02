@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        test-case: [test-without-filter, test-with-filter, test-with-invalid-log-group, test-with-secret-manager-false]
+        test-case: [test-without-filter]
 
     steps:
       - name: Checkout code

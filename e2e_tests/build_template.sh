@@ -4,10 +4,10 @@ BUILD_DIR="$BASE_NAME"
 
 # Build and package the SAM template
 cat $TEMPLATE_FILE_NAME
-echo pwd
+pwd
 echo "Building and packaging the SAM template"
-echo BASE_NAME
-echo BUILD_DIR
+BASE_NAME
+BUILD_DIR
 echo "Building and packaging the SAM template"
 version=$(grep 'instrumentation_version' ../../version.yaml | cut -d '"' -f2)
 echo "Building and packaging the SAM template with version: $version"

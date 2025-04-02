@@ -20,8 +20,11 @@ jobs:
 
       - name: Validate SAM Templates
         run: |
+          echo "Validating SAM templates"
+          echo "Current directory: $(pwd)"
           find . -path "./.github" -prune -o -name "version.yaml" -prune -o \( -name "*.yaml" -o -name "*.yml" \) -print0 | while IFS= read -r -d '' template; do
            echo "Validating template: $template"
+           echo "Current directory: $(pwd)"
            sam validate --template-file "$template" --region us-east-2 --lint
           done        
         shell: bash

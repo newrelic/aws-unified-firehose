@@ -4,6 +4,11 @@ BUILD_DIR="$BASE_NAME"
 
 # Build and package the SAM template
 cat $TEMPLATE_FILE_NAME
+echo pwd
+echo "Building and packaging the SAM template"
+echo BASE_NAME
+echo BUILD_DIR
+echo "Building and packaging the SAM template"
 version=$(grep 'instrumentation_version' ../../version.yaml | cut -d '"' -f2)
 echo "Building and packaging the SAM template with version: $version"
 sed -i "s/\"instrumentation.version\", \"AttributeValue\": \"[^\"]*\"/\"instrumentation.version\", \"AttributeValue\": \"$version\"/" $TEMPLATE_FILE_NAME

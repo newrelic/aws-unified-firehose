@@ -3,8 +3,8 @@ name: Pull Request Workflow
 on:
   pull_request:
     branches:
-      - main
-      - develop
+      - main_abc
+      - develop_abc
 
 jobs:
   validate-template-code:

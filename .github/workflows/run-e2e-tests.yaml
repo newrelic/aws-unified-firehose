@@ -7,7 +7,6 @@ on:
 
 jobs:
   deploy-and-test:
-    if: github.event.review.state == 'approved'
     runs-on: ubuntu-latest
     permissions:
       id-token: write

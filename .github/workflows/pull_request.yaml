@@ -15,7 +15,7 @@ jobs:
 
       - name: Install AWS SAM CLI
         run: |
-          pip install --user aws-sam-cli
+          pip install --user aws-sam-cli==1.134.0
 
       - name: Validate SAM Templates 
         run: |

@@ -38,4 +38,4 @@ jobs:
           TEMPLATE_FILE_NAME: firehose-template.yaml
         run: |
           cd e2e_tests/
-          ./build_template.sh
+          ./firehose_e2e_tests.sh

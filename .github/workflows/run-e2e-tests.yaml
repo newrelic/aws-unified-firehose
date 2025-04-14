@@ -1,12 +1,15 @@
 name: E2E Test Workflow For Firehose
 
 on:
-  pull_request:
-    branches:
-      - develop
+  pull_request_review:
+    types:
+      - submitted
+  schedule:
+    - cron: '0 0 1 * *'
 
 jobs:
   deploy-and-test:
+    if: github.event.review.state == 'approved'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -40,3 +43,12 @@ jobs:
           cd e2e_tests/
           ./build_template.sh
           ./firehose_e2e_tests.sh ${{ matrix.test-case }}
+
+      - name: Send failure notification to Slack
+        if: always()
+        uses: ravsamhq/notify-slack-action@v1
+        with:
+          status: ${{ job.status }}
+          notify_when: 'failure'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

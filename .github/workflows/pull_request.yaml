@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - develop
 
 jobs:
   validate-template-code:
@@ -15,11 +16,11 @@ jobs:
 
       - name: Install AWS SAM CLI
         run: |
-          pip install --user aws-sam-cli
+          pip install --user aws-sam-cli==1.134.0
 
       - name: Validate SAM Templates
         run: |
-          find . -path "./.github" -prune -o \( -name "*.yaml" -o -name "*.yml" \) -print0 | while IFS= read -r -d '' template; do
+          find . -path "./.github" -prune -o -name "version.yaml" -prune -o \( -name "*.yaml" -o -name "*.yml" \) -print0 | while IFS= read -r -d '' template; do
            echo "Validating template: $template"
            sam validate --template-file "$template" --region us-east-2 --lint
           done        

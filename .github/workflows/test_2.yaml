@@ -3,7 +3,7 @@ name: Build and Deploy AWS Unified Firehose
 on:
   pull_request:
     branches:
-      - main
+      - develop
 
 jobs:
   build-and-deploy:

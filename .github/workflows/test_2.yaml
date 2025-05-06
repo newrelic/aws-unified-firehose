@@ -30,7 +30,7 @@ jobs:
           cat firehose-template.yaml
           version=$(grep 'instrumentation_version' version.yaml | cut -d '"' -f2)
           sed -i "s/\"instrumentation.version\", \"AttributeValue\": \"[^\"]*\"/\"instrumentation.version\", \"AttributeValue\": \"$version\"/" firehose-template.yaml
-          sed -i "s/InstrumentationVersion: \".*\"/InstrumentationVersion: \"$version\"/" firehose-template.yaml
+          sed -i "s/InstrumentationVersion: '.*'/InstrumentationVersion: '$version'/" firehose-template.yaml
           cat firehose-template.yaml
 
       # - name: Build SAM Application

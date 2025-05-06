@@ -418,7 +418,7 @@ Resources:
     Type: 'AWS::CloudFormation::Stack'
     Condition: AddCloudwatchTrigger
     Properties:
-      TemplateURL:  https://s3.us-east-2.amazonaws.com/unified-metrics-cft-demo/firehose-cloudwatch-trigger-stack.yaml
+      TemplateURL: firehose-cloudwatch-trigger-stack.yaml
       Parameters:
         LogGroupConfig: !Ref LogGroupConfig
         LogGroupArns: !GetAtt NewRelicLogsResourceForUserInputParsing.LogGroupArns
@@ -429,7 +429,7 @@ Resources:
     Type: 'AWS::CloudFormation::Stack'
     Condition: AddCloudwatchTrigger
     Properties:
-      TemplateURL:  https://s3.us-east-2.amazonaws.com/unified-metrics-cft-demo/logging-metrics-template.yaml
+      TemplateURL:  https://s3.us-east-2.amazonaws.com/unified-lambda-serverless/logging-metrics-template.yaml
       Parameters:
         LicenseKey: !Ref LicenseKey
         NewRelicRegion: !Ref NewRelicRegion

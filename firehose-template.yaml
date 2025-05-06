@@ -8,7 +8,7 @@ Mappings:
       EU: 'https://aws-api.eu.newrelic.com/firehose/v1'
   VersionMap:
     MetricForwarder:
-      InstrumentationVersion: '1.0.0' 
+      FirehoseInstrumentationVersion: '1.0.0'
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: NewRelic-Firehose-Log-Forwarding
@@ -443,10 +443,10 @@ Resources:
               [
                 {
                   "Arn": "${NewRelicLogsFirehoseStreamToNewRelic.Arn}",
-                  "InstrumentationVersion": "${instrumentation_version}"
+                  "InstrumentationVersion": "${firehose_instrumentation_version}"
                 }
               ]
-            - instrumentation_version: !FindInMap [VersionMap, MetricForwarder, InstrumentationVersion]
+            - firehose_instrumentation_version: !FindInMap [VersionMap, MetricForwarder, FirehoseInstrumentationVersion]
         
 
 Outputs:

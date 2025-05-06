@@ -7,8 +7,8 @@ Mappings:
       US: 'https://aws-api.newrelic.com/firehose/v1'
       EU: 'https://aws-api.eu.newrelic.com/firehose/v1'
   VersionMap:
-    MetricForwarder:
-      FirehoseInstrumentationVersion: '1.0.0'
+    MetricsForwarder:
+      FirehoseInstrumentationVersion: '1.0.0'  #This will be dynamially updated by release workflow
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: NewRelic-Firehose-Log-Forwarding
@@ -427,7 +427,6 @@ Resources:
   
   NewRelicMetricsForwarderTrigger:
     Type: 'AWS::CloudFormation::Stack'
-    Condition: AddCloudwatchTrigger
     Properties:
       TemplateURL:  https://s3.us-east-2.amazonaws.com/unified-lambda-serverless/logging-metrics-template.yaml
       Parameters:
@@ -446,7 +445,7 @@ Resources:
                   "InstrumentationVersion": "${firehose_instrumentation_version}"
                 }
               ]
-            - firehose_instrumentation_version: !FindInMap [VersionMap, MetricForwarder, FirehoseInstrumentationVersion]
+            - firehose_instrumentation_version: !FindInMap [VersionMap, MetricsForwarder, FirehoseInstrumentationVersion]
         
 
 Outputs:

@@ -27,7 +27,7 @@ deploy_firehose_stack() {
       StoreNRLicenseKeyInSecretManager="$store_secret_in_secret_manager" \
       LogGroupConfig="$log_group_config" \
       CommonAttributes="$common_attributes" \
-    --capabilities CAPABILITY_NAMED_IAM
+    --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND
 }
 
 validate_stack_deployment_status() {

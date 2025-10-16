@@ -165,7 +165,7 @@ Resources:
   NewRelicLogsCloudWatchFirehoseEventLambdaLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Delete
-    DependsOn: NewRelicLogsCloudWatchFirehoseEventLambda
+    Condition: HasValidLogGroups
     Properties:
       RetentionInDays: 14
       LogGroupName: !Sub "/aws/lambda/${NewRelicLogsCloudWatchFirehoseEventLambda}"

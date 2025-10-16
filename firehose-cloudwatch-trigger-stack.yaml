@@ -161,3 +161,11 @@ Resources:
       Role: !GetAtt NewRelicLogsCloudWatchFirehoseLambdaIAMRole.Arn
       Runtime: python3.12
       Timeout: 120
+
+  NewRelicLogsCloudWatchFirehoseEventLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    DependsOn: NewRelicLogsCloudWatchFirehoseEventLambda
+    Properties:
+      RetentionInDays: 14
+      LogGroupName: !Sub "/aws/lambda/${NewRelicLogsCloudWatchFirehoseEventLambda}"

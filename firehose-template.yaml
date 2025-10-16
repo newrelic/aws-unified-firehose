@@ -173,6 +173,7 @@ Resources:
   
   NewRelicLogsFirehoseErrorLogGroup:
     Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
     Condition: ShouldEnableCloudWatchLogging
     Properties:
       LogGroupName: !Join ['/', ['/aws/datafirehose-newrelic/', !Ref 'AWS::StackName', 'FirehoseError']]
@@ -355,6 +356,14 @@ Resources:
       Role: !GetAtt NewRelicLogsUserInputParserLambdaIAMRole.Arn
       Timeout: 120
       MemorySize: 128
+
+  NewRelicLogsUserInputParserLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    DependsOn: NewRelicLogsUserInputParserLambda
+    Properties:
+      RetentionInDays: 14
+      LogGroupName: !Sub "/aws/lambda/${NewRelicLogsUserInputParserLambda}"
 
   NewRelicLogsResourceForUserInputParsing:
     Type: AWS::CloudFormation::CustomResource

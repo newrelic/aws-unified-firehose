@@ -360,7 +360,6 @@ Resources:
   NewRelicLogsUserInputParserLambdaLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Delete
-    DependsOn: NewRelicLogsUserInputParserLambda
     Properties:
       RetentionInDays: 14
       LogGroupName: !Sub "/aws/lambda/${NewRelicLogsUserInputParserLambda}"

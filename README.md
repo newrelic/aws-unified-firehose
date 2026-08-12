@@ -23,7 +23,7 @@ To try-out this integration, deploy the CloudFormation template (`firehose-templ
 
 | Parameter                              | Description |
 |----------------------------------------|-------------|
-| `NewRelicRegion`                       | The New Relic region (`US` or `EU`) for log forwarding. The default value is `US`. |
+| `NewRelicRegion`                       | The New Relic region (`US` or `EU` or `JP`) for log forwarding. The default value is `US`. |
 | `LicenseKey`                           | Your New Relic license key for log forwarding. |
 | `LogGroupConfig`                       | A JSON array defining CloudWatch LogGroups and filters to set triggers for the Lambda function. For example: `[{"LogGroupName":"group1"}, {"LogGroupName":"group2", "FilterPattern":"ERROR"}, {"LogGroupName":"group3", "FilterPattern":"INFO"}]` |
 | `LoggingFirehoseStreamName`            | Unique name for the Data Firehose Delivery Stream. The default value is `NewRelic-Logging-Delivery-Stream` |

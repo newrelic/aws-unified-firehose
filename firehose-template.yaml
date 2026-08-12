@@ -6,6 +6,7 @@ Mappings:
     Datacenter:
       US: 'https://aws-api.newrelic.com/firehose/v1'
       EU: 'https://aws-api.eu.newrelic.com/firehose/v1' # TODO update fedramp and govcloud urls.
+      JP: 'https://aws-api.jp.nr-data.net/firehose/v1'
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: NewRelic-Firehose-Log-Forwarding
@@ -52,6 +53,7 @@ Parameters:
     AllowedValues:
       - "US"
       - "EU"
+      - "JP"
   NewRelicAccountId: 
     Type: String
     Description: Id of the account in New relic
